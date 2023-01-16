@@ -3,11 +3,11 @@ package at.fhooe.me.blestartrekcomm
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity
-import android.bluetooth.BluetoothAdapter
-import android.bluetooth.BluetoothManager
+import android.bluetooth.*
 import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
+import android.content.ContentValues.TAG
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -38,6 +38,7 @@ class MainActivity : AppCompatActivity() {
 
     var mSocket: BTConnection? = null //Kommunikationssocket
     val mDevicesAddresses = ArrayList<String>() //Liste mit den Adressen der Geräten
+    var bluetoothGatt: BluetoothGatt? = null //Connection to Gatt server
 
 
     //Variables are lazy bc they need to be checked at runtime!!
@@ -87,9 +88,12 @@ class MainActivity : AppCompatActivity() {
             val device = mBluetoothAdapter.getRemoteDevice(address)
             val devName = device.name
             val devAddr = device.address
-            mSocket = BTConnection(mBluetoothAdapter,device,this.applicationContext)
-            mSocket!!.start()
+            connect(device)
             Toast.makeText(this@MainActivity, "$devName $devAddr found", Toast.LENGTH_SHORT).show()
+
+            //mSocket = BTConnection(mBluetoothAdapter,device,this.applicationContext)
+            //mSocket!!.start()
+
         }
 
         mScanButton.setOnClickListener{
@@ -98,6 +102,31 @@ class MainActivity : AppCompatActivity() {
             else
                 stopBleScan()
              }
+    }
+
+
+    private fun connect(device: BluetoothDevice) {
+        mBluetoothAdapter?.let { adapter ->
+            try {
+                // connect to the GATT server on the device
+                bluetoothGatt = device.connectGatt(this, false, bluetoothGattCallback)
+
+            } catch (exception: IllegalArgumentException) {
+                Log.w(TAG, "Device not found with provided address.  Unable to connect.")
+
+            }
+        }
+    }
+
+
+    private val bluetoothGattCallback = object : BluetoothGattCallback() {
+        override fun onConnectionStateChange(gatt: BluetoothGatt?, status: Int, newState: Int) {
+            if (newState == BluetoothProfile.STATE_CONNECTED) {
+                // successfully connected to the GATT Server
+            } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
+                // disconnected from the GATT Server
+            }
+        }
     }
 
 
