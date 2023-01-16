@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">BLEStarTrekComm</string>
+    <string name="bluetooth_devices">Devices</string>
+    <string name="scan">Scan Devices</string>
+</resources>
