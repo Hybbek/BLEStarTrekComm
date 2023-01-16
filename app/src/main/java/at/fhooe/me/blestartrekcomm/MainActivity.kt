@@ -87,8 +87,8 @@ class MainActivity : AppCompatActivity() {
             val device = mBluetoothAdapter.getRemoteDevice(address)
             val devName = device.name
             val devAddr = device.address
-            //mSocket = BTConnection(mBluetoothAdapter,device,this.applicationContext)
-            //mSocket!!.start()
+            mSocket = BTConnection(mBluetoothAdapter,device,this.applicationContext)
+            mSocket!!.start()
             Toast.makeText(this@MainActivity, "$devName $devAddr found", Toast.LENGTH_SHORT).show()
         }
 
@@ -189,8 +189,10 @@ class MainActivity : AppCompatActivity() {
         } else {
             mDevicesAddresses.clear()
             mListAdapter.notifyDataSetChanged()
-            mBleScanner.startScan(null, mScanSettings, scanCallback)}
+            mBleScanner.startScan(null, mScanSettings, scanCallback)
             mIsScanning = true
+        }
+
     }
 
     /**
@@ -216,6 +218,7 @@ class MainActivity : AppCompatActivity() {
                 requestBluetoothPermissions()
             }
         }
+
     }
 
     /**
@@ -256,15 +259,16 @@ class MainActivity : AppCompatActivity() {
                         "Bluetooth access in order to scan for and connect to BLE devices.")
                 builder.setCancelable(false)
                 builder.setPositiveButton(android.R.string.ok){ dialog, which ->
-                    ActivityCompat.requestPermissions(
-                        this,
-                        arrayOf(
-                            Manifest.permission.BLUETOOTH_SCAN,
-                            Manifest.permission.BLUETOOTH_CONNECT
-                        ),
-                        RUNTIME_PERMISSION_REQUEST_CODE
-
-                    )
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        ActivityCompat.requestPermissions(
+                            this,
+                            arrayOf(
+                                Manifest.permission.BLUETOOTH_SCAN,
+                                Manifest.permission.BLUETOOTH_CONNECT
+                            ),
+                            RUNTIME_PERMISSION_REQUEST_CODE
+                        )
+                    }
                 }
                 builder.show()
         }
