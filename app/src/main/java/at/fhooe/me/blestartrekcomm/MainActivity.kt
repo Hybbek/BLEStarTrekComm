@@ -12,7 +12,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
-import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.util.Log
 import android.widget.ArrayAdapter
@@ -20,8 +19,12 @@ import android.widget.Button
 import android.widget.ListView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import java.nio.charset.Charset
+import java.util.*
+import kotlin.collections.ArrayList
 
 
 private const val ENABLE_BLUETOOTH_REQUEST_CODE = 11 //request code corresponding to the Bluetooth-enabling action
@@ -36,11 +39,11 @@ class MainActivity : AppCompatActivity() {
     lateinit var mlistOfDevices: ListView //ListView to list BLE devices
     lateinit var mListAdapter: ArrayAdapter<String> //List with available devices
 
-    var mSocket: BTConnection? = null //Kommunikationssocket
+    //var mSocket: BTConnection? = null //Kommunikationssocket
     val mDevicesAddresses = ArrayList<String>() //Liste mit den Adressen der Geräten
-    var bluetoothGatt: BluetoothGatt? = null //Connection to Gatt server
+    var mBluetoothGatt: BluetoothGatt? = null //Connection to Gatt server
 
-
+    private var bluetoothService : BluetoothLeService? = null
     //Variables are lazy bc they need to be checked at runtime!!
 
     //Ble scanner Object
@@ -88,8 +91,9 @@ class MainActivity : AppCompatActivity() {
             val device = mBluetoothAdapter.getRemoteDevice(address)
             val devName = device.name
             val devAddr = device.address
-            connect(device)
             Toast.makeText(this@MainActivity, "$devName $devAddr found", Toast.LENGTH_SHORT).show()
+            val isConnected = connect(device)
+            Toast.makeText(this@MainActivity, "Connected to $devName", Toast.LENGTH_SHORT).show()
 
             //mSocket = BTConnection(mBluetoothAdapter,device,this.applicationContext)
             //mSocket!!.start()
@@ -105,15 +109,34 @@ class MainActivity : AppCompatActivity() {
     }
 
 
+    /*private fun connect(address: String?): Boolean {
+        if (mBluetoothAdapter == null || address == null) {
+            Log.w(TAG, "BluetoothAdapter not initialized or unspecified address.")
+            return false
+        }
+        if (mBluetoothGatt != null) {
+            Log.d(TAG, "Trying to use an existing mBluetoothGatt for connection.")
+            return mBluetoothGatt!!.connect()
+        }
+        val device = mBluetoothAdapter
+            .getRemoteDevice(address)
+        if (device == null) {
+            Log.w(TAG, "Device not found.  Unable to connect.")
+            return false
+        }
+        mBluetoothGatt = device.connectGatt(this, false, bluetoothGattCallback)
+        Log.d(TAG, "Trying to create a new connection.")
+        return mBluetoothGatt!!.connect()
+    }*/
     private fun connect(device: BluetoothDevice) {
         mBluetoothAdapter?.let { adapter ->
             try {
                 // connect to the GATT server on the device
-                bluetoothGatt = device.connectGatt(this, false, bluetoothGattCallback)
+                mBluetoothGatt = device.connectGatt(this, false, bluetoothGattCallback)
+                mBluetoothGatt!!.connect()  // connect to the GATT server on the device
 
             } catch (exception: IllegalArgumentException) {
                 Log.w(TAG, "Device not found with provided address.  Unable to connect.")
-
             }
         }
     }
@@ -121,15 +144,76 @@ class MainActivity : AppCompatActivity() {
 
     private val bluetoothGattCallback = object : BluetoothGattCallback() {
         override fun onConnectionStateChange(gatt: BluetoothGatt?, status: Int, newState: Int) {
+
             if (newState == BluetoothProfile.STATE_CONNECTED) {
                 // successfully connected to the GATT Server
+                Log.d(TAG, "Connected to GATT server.")
+                // discover services on the GATT Server
+                gatt?.discoverServices()
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                 // disconnected from the GATT Server
+                Log.d(TAG, "Disconnected from GATT server.")
             }
+        }
+
+        override fun onServicesDiscovered(gatt: BluetoothGatt?, status: Int) {
+            if (status == BluetoothGatt.GATT_SUCCESS) {
+                // successfully discovered services
+                Log.d(TAG, "Discovered GATT services.")
+                val service = gatt?.getService(APP_UUID)
+                mBluetoothGatt?.let { gatt ->
+                    val characteristic = service?.getCharacteristic(CHAR_UUID)
+                    readCharacteristic(service!!.getCharacteristic(CHAR_UUID))
+                    gatt.setCharacteristicNotification(characteristic, true)
+                    characteristic?.getDescriptor(DESC_UUID)?.let {
+                        it.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
+                        Log.d(TAG, "Write GATT descriptor: ${it.value?.contentToString()}")
+                        gatt.writeDescriptor(it)
+                    }
+                }
+
+            } else {
+                // failed to discover services
+                Log.d(TAG, "Failed to discover GATT services.")
+            }
+        }
+
+        override fun onCharacteristicRead(gatt: BluetoothGatt?, characteristic: BluetoothGattCharacteristic?, status: Int) {
+            if (status == BluetoothGatt.GATT_SUCCESS) {
+                val value = characteristic?.value
+                if (value != null && value.isNotEmpty()){
+                    //convert byte array to string
+                    val str = String(value, Charset.forName("UTF-8"))
+                    Log.d(TAG, "Read GATT characteristic: $str")
+                }else {
+                    Log.d(TAG, "Read GATT characteristic: null")
+                }
+                // successfully read characteristic
+                Log.d(TAG, "Read GATT characteristic.")
+            } else {
+                // failed to read characteristic
+                Log.d(TAG, "Failed to read GATT characteristic.")
+            }
+        }
+
+        override fun onCharacteristicChanged(gatt: BluetoothGatt?, characteristic: BluetoothGattCharacteristic?) {
+            val value = characteristic?.value
+            value?.let { val str = String(it, Charset.forName("UTF-8"))
+                    Log.d(TAG, "Characteristic changed $str")
+            }
+            // characteristic value changed
+
         }
     }
 
 
+    fun readCharacteristic(characteristic: BluetoothGattCharacteristic) {
+        if (mBluetoothGatt == null) {
+            Log.w(TAG, "BluetoothAdapter not initialized")
+            return
+        }
+        mBluetoothGatt!!.readCharacteristic(characteristic)
+    }
 
     override fun onResume() {
         super.onResume()
@@ -141,19 +225,12 @@ class MainActivity : AppCompatActivity() {
     private val scanCallback = object : ScanCallback() {
         override fun onScanResult(callbackType: Int, result: ScanResult) {
             with(result.device) {
-
-                Log.i(
-                    "ScanCallback",
-                    "Found BLE device! Name: ${name ?: "Unnamed"}, address: $address"
-                )
             if (!mDevicesAddresses.contains(result.device.address)){
                         mDevicesAddresses.add("$address")
                         mListAdapter.add("$name ($address)")
                         mListAdapter.notifyDataSetChanged()
                     }
-
                 }
-
         }
 
         override fun onScanFailed(errorCode: Int) {
