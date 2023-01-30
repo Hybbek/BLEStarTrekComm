@@ -24,7 +24,6 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import java.nio.charset.Charset
 import java.util.*
-import kotlin.collections.ArrayList
 
 
 private const val ENABLE_BLUETOOTH_REQUEST_CODE = 11 //request code corresponding to the Bluetooth-enabling action
@@ -35,6 +34,8 @@ private const val RUNTIME_PERMISSION_REQUEST_CODE = 12 //request code correspond
  */
 @SuppressLint("MissingPermission") // App's role to ensure permissions are available
 class MainActivity : AppCompatActivity() {
+    val mVoiceAssistant = VoiceAssistant(this) // Voice assistant object
+
     lateinit var mScanButton: Button  //Scan Button
     lateinit var mlistOfDevices: ListView //ListView to list BLE devices
     lateinit var mListAdapter: ArrayAdapter<String> //List with available devices
@@ -43,7 +44,8 @@ class MainActivity : AppCompatActivity() {
     val mDevicesAddresses = ArrayList<String>() //Liste mit den Adressen der Geräten
     var mBluetoothGatt: BluetoothGatt? = null //Connection to Gatt server
 
-    private var bluetoothService : BluetoothLeService? = null
+    private var bluetoothService : BluetoothLeService? = null //Bluetooth Service
+
     //Variables are lazy bc they need to be checked at runtime!!
 
     //Ble scanner Object
@@ -153,6 +155,8 @@ class MainActivity : AppCompatActivity() {
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                 // disconnected from the GATT Server
                 Log.d(TAG, "Disconnected from GATT server.")
+                mBluetoothGatt?.close()
+                mBluetoothGatt = null
             }
         }
 
@@ -164,7 +168,9 @@ class MainActivity : AppCompatActivity() {
                 mBluetoothGatt?.let { gatt ->
                     val characteristic = service?.getCharacteristic(CHAR_UUID)
                     readCharacteristic(service!!.getCharacteristic(CHAR_UUID))
-                    gatt.setCharacteristicNotification(characteristic, true)
+                    if (characteristic != null) {
+                        setCharacteristicNotification(characteristic, true)
+                    }
                     characteristic?.getDescriptor(DESC_UUID)?.let {
                         it.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
                         Log.d(TAG, "Write GATT descriptor: ${it.value?.contentToString()}")
@@ -182,12 +188,14 @@ class MainActivity : AppCompatActivity() {
             if (status == BluetoothGatt.GATT_SUCCESS) {
                 val value = characteristic?.value
                 if (value != null && value.isNotEmpty()){
+                    //setCharacteristicNotification(characteristic, true)
                     //convert byte array to string
                     val str = String(value, Charset.forName("UTF-8"))
                     Log.d(TAG, "Read GATT characteristic: $str")
                 }else {
                     Log.d(TAG, "Read GATT characteristic: null")
                 }
+
                 // successfully read characteristic
                 Log.d(TAG, "Read GATT characteristic.")
             } else {
@@ -198,21 +206,57 @@ class MainActivity : AppCompatActivity() {
 
         override fun onCharacteristicChanged(gatt: BluetoothGatt?, characteristic: BluetoothGattCharacteristic?) {
             val value = characteristic?.value
-            value?.let { val str = String(it, Charset.forName("UTF-8"))
-                    Log.d(TAG, "Characteristic changed $str")
+            if (value != null && value.isNotEmpty()) {
+                //setCharacteristicNotification(characteristic, true)
+                //convert byte array to string
+                val str = String(value, Charset.forName("UTF-8"))
+                if (str == "Emblem pressed") {
+                    if (mVoiceAssistant.isCallActive()){
+                        mVoiceAssistant.endPhoneCall()
+                    }else{
+                        mVoiceAssistant.activateAssistant()
+                        //Log.d(TAG, "Emblem pressed")
+                    }
+                }else{
+                    Log.d(TAG, "Read GATT characteristic: $str")
+                }
+            } else {
+                Log.d(TAG, "Read GATT characteristic: null")
             }
+
+            /*value?.let { val str = String(it, Charset.forName("UTF-8"))
+                val i = 0;
+                //Log.d(TAG, "Characteristic changed $str")
+
+            }*/
             // characteristic value changed
 
         }
     }
 
-
+    /**
+     * Reads the value of a given characteristic.
+     */
     fun readCharacteristic(characteristic: BluetoothGattCharacteristic) {
         if (mBluetoothGatt == null) {
             Log.w(TAG, "BluetoothAdapter not initialized")
             return
         }
         mBluetoothGatt!!.readCharacteristic(characteristic)
+    }
+
+    fun setCharacteristicNotification(characteristic: BluetoothGattCharacteristic, enabled: Boolean) {
+        if (mBluetoothGatt == null) {
+            Log.w(TAG, "BluetoothAdapter not initialized")
+            return
+        }
+        mBluetoothGatt!!.setCharacteristicNotification(characteristic, enabled)
+        Log.d(TAG, "Set characteristic notification: $enabled")
+        if(CHAR_UUID == characteristic.uuid){
+            val descriptor = characteristic.getDescriptor(DESC_UUID)
+            descriptor.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
+            mBluetoothGatt!!.writeDescriptor(descriptor)
+        }
     }
 
     override fun onResume() {

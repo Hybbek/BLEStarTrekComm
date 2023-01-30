@@ -14,7 +14,7 @@ import java.util.*
 //val APP_UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
 val APP_UUID = UUID.fromString("4fafc201-1fb5-459e-8fcc-c5c9c331914b")
 val CHAR_UUID = UUID.fromString("beb5483e-36e1-4688-b7f5-ea07361b26a8")
-val DESC_UUID = UUID.fromString("beb5483e-36e1-4688-c7f5-ea07361b26a9")
+val DESC_UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
 @SuppressLint("MissingPermission")
 class BTConnection (private val mBluetoothAdapter: BluetoothAdapter, private val device: BluetoothDevice, private val _context: Context) : Thread(){
     private val mmClientSocket: BluetoothSocket? by lazy(LazyThreadSafetyMode.NONE) {
