@@ -1,6 +1,7 @@
 package at.fhooe.me.blestartrekcomm
 
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothSocket
@@ -16,7 +17,6 @@ val APP_UUID = UUID.fromString("4fafc201-1fb5-459e-8fcc-c5c9c331914b")
 val CHAR_UUID = UUID.fromString("beb5483e-36e1-4688-b7f5-ea07361b26a8")
 val DESC_UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
 
-class BLEConnection(_context: Context, _device: BluetoothDevice, _adapter: BluetoothAdapter) {
-
+class BLEConnection : Activity() {
 
 }

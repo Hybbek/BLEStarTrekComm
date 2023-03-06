@@ -27,13 +27,19 @@ import java.util.*
 
 
 private const val ENABLE_BLUETOOTH_REQUEST_CODE = 11 //request code corresponding to the Bluetooth-enabling action
-private const val RUNTIME_PERMISSION_REQUEST_CODE = 12 //request code corresponding to the runtime-permission-enabling action
+//private const val RUNTIME_PERMISSION_REQUEST_CODE = 12 //request code corresponding to the runtime-permission-enabling action
 
 /**
  * Main activity of the app.
  */
 @SuppressLint("MissingPermission") // App's role to ensure permissions are available
 class MainActivity : AppCompatActivity() {
+
+    private val mPermissionHandling = PermissionHandling() //Permission Handling Object
+
+
+
+
     val mVoiceAssistant = VoiceAssistant(this) // Voice assistant object
 
     lateinit var mScanButton: Button  //Scan Button
@@ -65,7 +71,7 @@ class MainActivity : AppCompatActivity() {
         .build()
 
     // Variable to store if local permissions are granted
-    private val mIsLocationPermissionGranted get() = hasPermission(Manifest.permission.ACCESS_FINE_LOCATION)
+//    private val mIsLocationPermissionGranted get() = hasPermission(Manifest.permission.ACCESS_FINE_LOCATION)
 
     // Value if program is scanning or not. With setter method which changes the button text.
     private var mIsScanning = false
@@ -314,37 +320,16 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-
-    /**
-     * extension function to check if there are permissions which have to be required.
-     */
-    fun Context.hasPermission(permissionType: String): Boolean {
-        return ContextCompat.checkSelfPermission(this, permissionType) ==
-                PackageManager.PERMISSION_GRANTED
-    }
-
-
-    /**
-     * extension function to check if the required runtime permissions are given.
-     */
-    fun Context.hasRequiredRuntimePermissions(): Boolean {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            hasPermission(Manifest.permission.BLUETOOTH_SCAN) &&
-                    hasPermission(Manifest.permission.BLUETOOTH_CONNECT)
-        } else {
-            hasPermission(Manifest.permission.ACCESS_FINE_LOCATION)
-        }
-    }
-
     /**
      * Checks if the required runtime permissions have been granted before allowing to proceed with
      * the BLE scan.
      * If so, the BLE scan starts
      */
-    private fun startBleScan() {
+    fun startBleScan() {
         if (!hasRequiredRuntimePermissions()) {
             requestRelevantRuntimePermissions()
-        } else {
+        }
+            else {
             mDevicesAddresses.clear()
             mListAdapter.notifyDataSetChanged()
             mBleScanner.startScan(null, mScanSettings, scanCallback)
@@ -359,78 +344,6 @@ class MainActivity : AppCompatActivity() {
         mBleScanner.stopScan(scanCallback)
         mIsScanning = false
     }
-
-
-    /**
-     * Checks if required runtime permissions are given.
-     * If not, asking the user to manually give permissions.
-     */
-    private fun Activity.requestRelevantRuntimePermissions() {
-        if (hasRequiredRuntimePermissions()) { return }
-        when {
-            Build.VERSION.SDK_INT < Build.VERSION_CODES.S -> {
-                requestLocationPermission()
-            }
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-                requestBluetoothPermissions()
-            }
-
-        }
-    }
-
-    /**
-     * Alert which asks for location permission.
-     */
-    private fun requestLocationPermission() {
-        if (mIsLocationPermissionGranted) {
-            return
-        }
-        runOnUiThread {
-            val builder = AlertDialog.Builder(this)
-            builder.setTitle("Location permission required")
-            builder.setMessage("Starting from Android M (6.0), the system requires apps to be granted " +
-                    "location access in order to scan for BLE devices.")
-            builder.setCancelable(false)
-
-            builder.setPositiveButton(android.R.string.ok) { dialog, which ->
-                ActivityCompat.requestPermissions(
-                    this,
-                    arrayOf(
-                        Manifest.permission.ACCESS_FINE_LOCATION
-                    ),
-                    RUNTIME_PERMISSION_REQUEST_CODE
-                )
-            }
-            builder.show()
-        }
-    }
-
-    /**
-     * Alert which asks for bluetooth permissions.
-     */
-    private fun requestBluetoothPermissions() {
-        runOnUiThread {
-                val builder = AlertDialog.Builder(this)
-                builder.setTitle("Bluetooth permissions required")
-                builder.setMessage("Starting from Android 12, the system requires apps to be granted " +
-                        "Bluetooth access in order to scan for and connect to BLE devices.")
-                builder.setCancelable(false)
-                builder.setPositiveButton(android.R.string.ok){ dialog, which ->
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                        ActivityCompat.requestPermissions(
-                            this,
-                            arrayOf(
-                                Manifest.permission.BLUETOOTH_SCAN,
-                                Manifest.permission.BLUETOOTH_CONNECT
-                            ),
-                            RUNTIME_PERMISSION_REQUEST_CODE
-                        )
-                    }
-                }
-                builder.show()
-        }
-    }
-
 
     override fun onRequestPermissionsResult(
         requestCode: Int,
@@ -467,5 +380,4 @@ class MainActivity : AppCompatActivity() {
            }
         }
     }
-
 }
