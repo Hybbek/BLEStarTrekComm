@@ -30,7 +30,7 @@ private const val ENABLE_BLUETOOTH_REQUEST_CODE = 11 //request code correspondin
 private const val RUNTIME_PERMISSION_REQUEST_CODE = 12 //request code corresponding to the runtime-permission-enabling action
 
 /**
- *
+ * Main activity of the app.
  */
 @SuppressLint("MissingPermission") // App's role to ensure permissions are available
 class MainActivity : AppCompatActivity() {
@@ -130,12 +130,16 @@ class MainActivity : AppCompatActivity() {
         Log.d(TAG, "Trying to create a new connection.")
         return mBluetoothGatt!!.connect()
     }*/
+
+    /**
+     * Connects to the GATT server hosted on the Bluetooth LE device.
+     */
     private fun connect(device: BluetoothDevice) {
         mBluetoothAdapter?.let { adapter ->
             try {
                 // connect to the GATT server on the device
                 mBluetoothGatt = device.connectGatt(this, false, bluetoothGattCallback)
-                mBluetoothGatt!!.connect()  // connect to the GATT server on the device
+                //mBluetoothGatt!!.connect()  // connect to the GATT server on the device
 
             } catch (exception: IllegalArgumentException) {
                 Log.w(TAG, "Device not found with provided address.  Unable to connect.")
@@ -210,12 +214,13 @@ class MainActivity : AppCompatActivity() {
                 //setCharacteristicNotification(characteristic, true)
                 //convert byte array to string
                 val str = String(value, Charset.forName("UTF-8"))
+                Log.d(TAG, str)
                 if (str == "Emblem pressed") {
                     if (mVoiceAssistant.isCallActive()){
-                        mVoiceAssistant.endPhoneCall()
+                        //mVoiceAssistant.endPhoneCall()
                     }else{
-                        mVoiceAssistant.activateAssistant()
-                        //Log.d(TAG, "Emblem pressed")
+                        //mVoiceAssistant.activateAssistant()
+                        Log.d(TAG, "Assistant active")
                     }
                 }else{
                     Log.d(TAG, "Read GATT characteristic: $str")
@@ -245,6 +250,9 @@ class MainActivity : AppCompatActivity() {
         mBluetoothGatt!!.readCharacteristic(characteristic)
     }
 
+    /**
+     * Enables or disables notification on a give characteristic.
+     */
     fun setCharacteristicNotification(characteristic: BluetoothGattCharacteristic, enabled: Boolean) {
         if (mBluetoothGatt == null) {
             Log.w(TAG, "BluetoothAdapter not initialized")
@@ -266,6 +274,9 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Callback for BluetoothAdapter.LeScan() method.
+     */
     private val scanCallback = object : ScanCallback() {
         override fun onScanResult(callbackType: Int, result: ScanResult) {
             with(result.device) {
@@ -304,9 +315,6 @@ class MainActivity : AppCompatActivity() {
     }
 
 
-
-
-
     /**
      * extension function to check if there are permissions which have to be required.
      */
@@ -342,7 +350,6 @@ class MainActivity : AppCompatActivity() {
             mBleScanner.startScan(null, mScanSettings, scanCallback)
             mIsScanning = true
         }
-
     }
 
     /**
@@ -368,7 +375,6 @@ class MainActivity : AppCompatActivity() {
                 requestBluetoothPermissions()
             }
         }
-
     }
 
     /**
